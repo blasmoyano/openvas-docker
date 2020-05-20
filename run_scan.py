@@ -10,24 +10,25 @@ from datetime import datetime
 parser = optparse.OptionParser()
 
 parser.add_option('-u', '--username',
-    action="store", dest="ssh_username",
-    help="SSH Username", default="")
+                  action="store", dest="ssh_username",
+                  help="SSH Username", default="")
 
 parser.add_option('-p', '--password',
-    action="store", dest="ssh_password",
-    help="SSH Password", default="")
+                  action="store", dest="ssh_password",
+                  help="SSH Password", default="")
 
 parser.add_option('-k', '--key',
-    action="store", dest="ssh_key",
-    help="SSH Private Key", default="")
+                  action="store", dest="ssh_key",
+                  help="SSH Private Key", default="")
 
 parser.add_option('-c', '--config_id',
-    action="store", dest="config_id",
-    help="OpenVAS Scan Configuration GUID", default="daba56c8-73ec-11df-a475-002264764cea") # Full and fast
+                  action="store", dest="config_id",
+                  help="OpenVAS Scan Configuration GUID",
+                  default="daba56c8-73ec-11df-a475-002264764cea")  # Full and fast
 
 parser.add_option('-v', '--verbose',
-    action="store_true", dest="verbose",
-    help="Print verbose log", default=False)
+                  action="store_true", dest="verbose",
+                  help="Print verbose log", default=False)
 
 options, args = parser.parse_args()
 
@@ -47,21 +48,27 @@ omp_logon = "omp -u admin -w admin -h 127.0.0.1 -p 9390"
 create_target_sshcredential = ""
 
 if options.ssh_username:
-	if options.ssh_password:
-		creds_key = "<password>{}</password>".format(options.ssh_password)
-	elif options.ssh_key:
-		creds_key = "<key><private>{}</private></key>".format(options.ssh_key)
-	else:
-		print("No SSH Password or Private Key provided.")
-		exit()
+    if options.ssh_password:
+        creds_key = "<password>{}</password>".format(options.ssh_password)
+    elif options.ssh_key:
+        creds_key = "<key><private>{}</private></key>".format(options.ssh_key)
+    else:
+        print("No SSH Password or Private Key provided.")
+        exit()
 
-	create_credential = "{} --xml '<create_credential><name>Credentials-{}</name><login>{}</login>{}</create_credential>'".format(omp_logon, random.randint(1,101), options.ssh_username, creds_key)
-	create_credential_response = subprocess.check_output(create_credential, stderr=subprocess.STDOUT, shell=True)
-	credential_id = etree.XML(create_credential_response).xpath("//create_credential_response")[0].get("id")
-	print("credential_id: {}".format(credential_id))
-	create_target_sshcredential = "<ssh_credential id=\"{}\"><port>22</port></ssh_credential>".format(credential_id)
+    create_credential = "{} --xml '<create_credential><name>Credentials-{}</name><login>{}</login>{}</create_credential>'".format(
+        omp_logon, random.randint(1, 101), options.ssh_username, creds_key)
+    create_credential_response = subprocess.check_output(create_credential, stderr=subprocess.STDOUT, shell=True)
+    credential_id = etree.XML(create_credential_response).xpath("//create_credential_response")[0].get("id")
+    print("credential_id: {}".format(credential_id))
+    create_target_sshcredential = "<ssh_credential id=\"{}\"><port>22</port></ssh_credential>".format(credential_id)
 
-create_target = "{0} --xml '<create_target><name>{1}-{2}</name><hosts>{1}</hosts>{3}</create_target>'".format(omp_logon, hosts, random.randint(1,101), create_target_sshcredential)
+create_target = "{0} --xml '<create_target><name>{1}-{2}</name><hosts>{1}</hosts>{3}</create_target>'".format(omp_logon,
+                                                                                                              hosts,
+                                                                                                              random.randint(
+                                                                                                                  1,
+                                                                                                                  101),
+                                                                                                              create_target_sshcredential)
 create_target_response = subprocess.check_output(create_target, stderr=subprocess.STDOUT, shell=True)
 target_id = etree.XML(create_target_response).xpath("//create_target_response")[0].get("id")
 print("target_id: {}".format(target_id))
@@ -80,22 +87,22 @@ status = ""
 get_status = "{} --xml '<get_tasks task_id=\"{}\"/>'".format(omp_logon, task_id)
 
 while status != "Done":
-	try:
-		time.sleep(5)
-		get_status_response = subprocess.check_output(get_status, stderr=subprocess.STDOUT, shell=True)
-		status = etree.XML(get_status_response).xpath("//status")[0].text
-		progress = etree.XML(get_status_response).xpath("//progress")[0].text
-		current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-		sys.stdout.write("\x1b[2K") # Erase line
-		sys.stdout.write("[{}] Progress: {} {}%\r".format(current_time, status, progress))
-		sys.stdout.flush()
-	except subprocess.CalledProcessError as exc:
-		print("\nError: {}".format(exc.output))
+    try:
+        time.sleep(5)
+        get_status_response = subprocess.check_output(get_status, stderr=subprocess.STDOUT, shell=True)
+        status = etree.XML(get_status_response).xpath("//status")[0].text
+        progress = etree.XML(get_status_response).xpath("//progress")[0].text
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        sys.stdout.write("\x1b[2K")  # Erase line
+        sys.stdout.write("[{}] Progress: {} {}%\r".format(current_time, status, progress))
+        sys.stdout.flush()
+    except subprocess.CalledProcessError as exc:
+        print("\nError: {}".format(exc.output))
 
 if options.verbose:
     openvaslog = open("/var/log/openvas/openvassd.messages", "r").read()
     print("openvassd.messages: {}".format(openvaslog))
-    
+
 report_id = etree.XML(get_status_response).xpath("//report")[0].get("id")
 print("report_id: {}".format(report_id))
 
