@@ -40,7 +40,7 @@ outputfile = args[1]
 
 print('Starting OpenVAS')
 
-os.system('BUILD=true /start')
+os.system('BUILD=true /run.sh')
 
 print('Starting scan with config {}'.format(options.config_id))
 
